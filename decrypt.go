@@ -48,7 +48,13 @@ func (d *Dispatcher) AddInstance(inst *WrapperInstance) {
 func (d *Dispatcher) RemoveInstance(id string) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	if len(d.Instances) == 0 {
+		return
+	}
 	for i, inst := range d.Instances {
+		if inst == nil {
+			continue
+		}
 		if inst.id == id {
 			d.Instances = append(d.Instances[:i], d.Instances[i+1:]...)
 			break
