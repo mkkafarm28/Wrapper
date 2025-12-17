@@ -21,6 +21,15 @@ func GetHttpClient() *http.Client {
 	return &http.Client{Transport: transport}
 }
 
+type LyricResponse struct {
+    Errors []interface{} `json:"errors"`
+    Data   []struct {
+        Attributes struct {
+            TtmlLocalizations string `json:"ttmlLocalizations"`
+        } `json:"attributes"`
+    } `json:"data"`
+}
+
 func GetLyrics(adamID string, region string, language string, token string, musicToken string) (string, error) {
 	req, err := http.NewRequest("GET", fmt.Sprintf("https://amp-api.music.apple.com/v1/catalog/%s/songs/%s/syllable-lyrics?l[lyrics]=%s&extend=ttmlLocalizations&l[script]=en-Latn", region, adamID, language), nil)
 	if err != nil {
@@ -41,14 +50,20 @@ func GetLyrics(adamID string, region string, language string, token string, musi
 	if err != nil {
 		return "", err
 	}
-	var respJson map[string][]interface{}
-	if err := json.Unmarshal(respBody, &respJson); err != nil {
+	var result LyricResponse
+	if err := json.Unmarshal(respBody, &result); err != nil {
 		return "", err
 	}
-	if respJson["errors"] != nil {
-		return "", errors.New(fmt.Sprintf("failed to get lyrics: %s", respJson["errors"]))
+	if len(result.Errors) > 0 {
+		return "", fmt.Errorf("failed to get lyrics: %v", result.Errors)
 	}
-	ttml := respJson["data"][0].(map[string]interface{})["attributes"].(map[string]interface{})["ttmlLocalizations"].(string)
+	if len(result.Data) == 0 {
+		return "", errors.New("no data found")
+	}
+	ttml := result.Data[0].Attributes.TtmlLocalizations
+	if ttml == "" {
+		return "", errors.New("no ttml found")
+	}
 	return ttml, nil
 }
 
